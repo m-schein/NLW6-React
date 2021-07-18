@@ -1,4 +1,4 @@
-import { createContext, useState } from 'react'
+import { createContext, useState, useEffect } from 'react'
 import { NewRoom } from "./pages/NewRoom";
 import { Home } from "./pages/Home"
 import { auth, firebase } from './services/firebase'
@@ -12,18 +12,37 @@ type User = {
 
 type AuthContextType = {
   user: User | undefined;
-  signInWithGoogle: () => void;
+  signInWithGoogle: () => Promise<void>;
 }
 
 export const AuthContext = createContext({} as AuthContextType);
 
 function App() {
-  const [user, setUser] = useState<User>()
+  const [user, setUser] = useState<User>();
 
-  function signInWithGoogle(){
+  useEffect(() => {
+    auth.onAuthStateChanged( user => {
+        if(user) {
+          const { displayName, photoURL, uid } = user;
+
+          if(!displayName || !photoURL){
+            throw new Error("Missing information");
+          }
+
+          setUser({
+            id: uid,
+            name: displayName,
+            avatar: photoURL
+          })
+        }
+    })
+
+  })
+
+  async function signInWithGoogle(){
     const provider = new firebase.auth.GoogleAuthProvider();
+    const result = await auth.signInWithPopup(provider);
 
-    auth.signInWithPopup(provider).then(result =>{
       if(result.user) {
         const { displayName, photoURL, uid } = result.user;
 
@@ -36,12 +55,10 @@ function App() {
           name: displayName,
           avatar: photoURL
         })
-
-
       }
-        console.log(result);
-        //history.push('/rooms/new');
-    })
+    
+    console.log(result);
+  
   }
   return (
     <BrowserRouter>
